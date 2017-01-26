@@ -28,7 +28,7 @@
 #==============================================================================#
 #   Known Limitations of this Addon Script:                                    #
 #------------------------------------------------------------------------------#
-# * The html table inch isn't the same as the printable inch.                  #
+# * The html file may have added margins with print to file in browser.        #
 # * There is no configurable dialog box for page size and margins.             #
 # * The method of rearranging images can't be turned off.                      #
 # * There is no method to disable pdf conversion dependencies.                 #
@@ -45,23 +45,28 @@ from anki.utils import ids2str
 import pdfkit
 
 #TODO make these interactive to adjust
-MARGIN = .25
+LEFT_MARGIN = 0.5
+RIGHT_MARGIN = 0.5
+TOP_MARGIN = 0.5
+BOTTOM_MARGIN = 0.5
 HEIGHT = 4
 WIDTH = 6
-BORDER = False
+BORDER = True
 
-#factor to adjust the table inch to pdf inch (default is 1.21)
-FUDGE = 1.21
+#html table values
+TABLE_WIDTH = WIDTH - LEFT_MARGIN - RIGHT_MARGIN
+TABLE_HEIGHT = HEIGHT - TOP_MARGIN - BOTTOM_MARGIN
 
 #options for pdf conversion
 OPTIONS = {
+    'disable-smart-shrinking': None,
     'page-height': '{0}in'.format(str(HEIGHT)),
     'page-width': '{0}in'.format(str(WIDTH)),
-    'margin-top': '{0}in'.format(str(MARGIN)),
-    'margin-right': '{0}in'.format(str(MARGIN)),
-    'margin-bottom': '{0}in'.format(str(MARGIN)),
-    'margin-left': '{0}in'.format(str(MARGIN)),
-}  
+    'margin-left': '{0}in'.format(str(LEFT_MARGIN)),
+    'margin-right': '{0}in'.format(str(RIGHT_MARGIN)),
+    'margin-top': '{0}in'.format(str(TOP_MARGIN)),
+    'margin-bottom': '{0}in'.format(str(BOTTOM_MARGIN)),
+} 
 
 #merge file path with prefix
 def uniPathPrefix(path):
@@ -128,6 +133,7 @@ def seperateOutImages(note):
     #if no image, just return the note
     return (note, None)
 
+#TODO
 #excution begins here when triggered in anki
 def onPrint():
 
@@ -145,25 +151,27 @@ def onPrint():
     #html header
     header = u"<html>\n"
     header += u"<head>\n"
-    header += u"\t" + '<meta charset="utf-8">' + "\n"
+    header += u"\t<meta charset=\"utf-8\">\n"
     header += u"\t{0}\n".format(getBase(mw.col))
     header += u"</head>\n"
 
     #style section
-    style = u"<style>\n"
+    style = u"<style type=\"text/css\">\n"
+    style += u"\t* { margin: 0px; }\n"
     style += u"\timg { width: 100%; }\n"
     style += u"\ttd { text-align: center; vertical-align: middle; }\n"
-    style += u"\ttd tr { page-break-after: avoid; }\n"
     if BORDER:
-        style += u"\ttd { border: 1px solid black; }\n"
-    style += u"\ttable {{ page-break-after: always; width: {0}in; height: {1}in; table-layout: fixed; }}\n" \
-        .format(str((WIDTH-MARGIN*2)*FUDGE), str((HEIGHT-MARGIN*2)*FUDGE))
+        style += u"\ttable td { border: 1px solid black; }\n"
+    style += u"\ttd tr { page-break-after: avoid; }\n"
+    style += u"\ttable { page-break-after: always; }\n"
+    style += u"\ttable {{ width: {0}in; height: {1}in; table-layout: fixed; }}\n".format(str(TABLE_WIDTH), str(TABLE_HEIGHT))
     style += u"</style>\n"
 
     #start writing to html file
     buf = open(htmlPath, "w")
     buf.write(header.encode("utf8"))
     buf.write(style.encode("utf8"))
+    buf.write(u"<body>\n".encode("utf8"))
 
     #loop through all card IDs and write note text to html file
     for i, cardID in enumerate(cardIDs):
@@ -208,6 +216,7 @@ def onPrint():
         mw.progress.update("Cards exported: {0}".format(i+1))
 
     #close out html file writing
+    buf.write("</body>\n".encode("utf8"))
     buf.write("</html>".encode("utf8"))
     buf.close()
 
