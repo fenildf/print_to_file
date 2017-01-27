@@ -51,7 +51,6 @@ TOP_MARGIN = 0.5
 BOTTOM_MARGIN = 0.5
 HEIGHT = 4
 WIDTH = 6
-BORDER = True
 
 #html table values
 TABLE_WIDTH = WIDTH - LEFT_MARGIN - RIGHT_MARGIN
@@ -120,9 +119,8 @@ def seperateOutImages(note):
                     images.append(subNotes[k])
                     del subNotes[k]
 
-        #join note and images back into a string
+        #join note back into a string
         note = ''.join(subNotes)
-        images = ''.join(images)
 
         #if no note, just return the images
         if len(note) == 0:
@@ -157,14 +155,11 @@ def onPrint():
 
     #style section
     style = u"<style type=\"text/css\">\n"
-    style += u"\t* { margin: 0px; }\n"
-    style += u"\timg { width: 100%; }\n"
+    style += u"\t* { margin: 0px; padding: 0px; }\n"
+    style += u"\ttable {{ height: {0}in; width: {1}in; }}\n".format(str(TABLE_HEIGHT), str(TABLE_WIDTH))
+    style += u"\ttable { page-break-after: always; table-layout: fixed; border-spacing: 0px; }\n"
     style += u"\ttd { text-align: center; vertical-align: middle; }\n"
-    if BORDER:
-        style += u"\ttable td { border: 1px solid black; }\n"
-    style += u"\ttd tr { page-break-after: avoid; }\n"
-    style += u"\ttable { page-break-after: always; }\n"
-    style += u"\ttable {{ width: {0}in; height: {1}in; table-layout: fixed; }}\n".format(str(TABLE_WIDTH), str(TABLE_HEIGHT))
+    style += u"\timg {{ max-height: {0}in; max-width: 100%; }}\n".format(str(TABLE_HEIGHT))
     style += u"</style>\n"
 
     #start writing to html file
@@ -191,7 +186,8 @@ def onPrint():
         if qText:
             rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(qText)
         if qImages:
-            rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(qImages)
+            for qImage in qImages:
+                rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(qImage)
         rowHtml += u"</tr>\n"
         rowHtml += u"</table>\n"
 
@@ -205,7 +201,8 @@ def onPrint():
         if aText:
             rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(aText)
         if aImages:
-            rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(aImages)
+            for aImage in aImages:
+                rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(aImage)
         rowHtml += u"</tr>\n"
         rowHtml += u"</table>\n"
 
