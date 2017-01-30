@@ -29,43 +29,22 @@
 #   Known Limitations of this Addon Script:                                    #
 #------------------------------------------------------------------------------#
 # * The html file may have added margins with print to file in browser.        #
-# * There is no configurable dialog box for page size and margins.             #
+# * There is no config file to save settings between uses                      #
 # * The method of rearranging images can't be turned off.                      #
 # * There is no method to disable pdf conversion dependencies.                 #
 #                                                                              #
 #==============================================================================#
 
 import re, urllib
+import pdfkit
+##TODO check if no need later
+from PyQt4 import QtGui, QtCore, QtWebKit
 from aqt.qt import *
 from anki.utils import isWin
 from anki.hooks import runHook, addHook
 from aqt.utils import getBase, openLink
 from aqt import mw
 from anki.utils import ids2str
-import pdfkit
-
-#TODO make these interactive to adjust
-LEFT_MARGIN = 0.5
-RIGHT_MARGIN = 0.5
-TOP_MARGIN = 0.5
-BOTTOM_MARGIN = 0.5
-HEIGHT = 4
-WIDTH = 6
-
-#html table values
-TABLE_WIDTH = WIDTH - LEFT_MARGIN - RIGHT_MARGIN
-TABLE_HEIGHT = HEIGHT - TOP_MARGIN - BOTTOM_MARGIN
-
-#options for pdf conversion
-OPTIONS = {
-    'disable-smart-shrinking': None,
-    'page-height': '{0}in'.format(str(HEIGHT)),
-    'page-width': '{0}in'.format(str(WIDTH)),
-    'margin-left': '{0}in'.format(str(LEFT_MARGIN)),
-    'margin-right': '{0}in'.format(str(RIGHT_MARGIN)),
-    'margin-top': '{0}in'.format(str(TOP_MARGIN)),
-    'margin-bottom': '{0}in'.format(str(BOTTOM_MARGIN)),
-} 
 
 #merge file path with prefix
 def uniPathPrefix(path):
@@ -131,9 +110,36 @@ def seperateOutImages(note):
     #if no image, just return the note
     return (note, None)
 
-#TODO
-#excution begins here when triggered in anki
-def onPrint():
+#function responsible for generating html and pdf from note text
+def printToFile(optionsList):
+
+    #default empty fields to 0
+    for item in optionsList:
+        if not item.text():
+            item.setText("0")
+
+    #TODO make these interactive to adjust
+    LEFT_MARGIN = float(optionsList[0].text())
+    RIGHT_MARGIN = float(optionsList[1].text())
+    TOP_MARGIN = float(optionsList[2].text())
+    BOTTOM_MARGIN = float(optionsList[3].text())
+    WIDTH = float(optionsList[4].text())
+    HEIGHT = float(optionsList[5].text())
+
+    #html table values
+    TABLE_WIDTH = WIDTH - LEFT_MARGIN - RIGHT_MARGIN
+    TABLE_HEIGHT = HEIGHT - TOP_MARGIN - BOTTOM_MARGIN
+
+    #options for pdf conversion
+    OPTIONS = {
+        'disable-smart-shrinking': None,
+        'page-height': '{0}in'.format(str(HEIGHT)),
+        'page-width': '{0}in'.format(str(WIDTH)),
+        'margin-left': '{0}in'.format(str(LEFT_MARGIN)),
+        'margin-right': '{0}in'.format(str(RIGHT_MARGIN)),
+        'margin-top': '{0}in'.format(str(TOP_MARGIN)),
+        'margin-bottom': '{0}in'.format(str(BOTTOM_MARGIN)),
+    }
 
     #progress bar start
     mw.progress.start(immediate=True)
@@ -226,8 +232,103 @@ def onPrint():
     #opens pdf
     openLink(uniPathPrefix(pdfPath))
 
+#TODO File IO
+#TODO pass input to print code
+#TODO turn widget creation into a dictionary of sorts, to iterate everything, if/then for groupbox
+#options dialog window for making changes to page size and margin
+def showDialog():
+    optionsDialog = QtGui.QDialog(mw)
+    optionsDialog.setWindowTitle("Page Setup")
+    optionsDialog.setStyleSheet(
+            "QGroupBox { border: 1px solid gray; font-weight: bold; }\n"
+            +"QGroupBox::title { color: black; }")
+
+    #label text and additional note text
+    mLabelText = [ "Left Margin:",
+            "Right Margin:",
+            "Top Margin:",
+            "Bottom Margin:" ]
+    pLabelText = [ "Page Width:",
+            "Page Height:" ]
+    noteText = "Units are in inches."
+    noteLabel = QtGui.QLabel(noteText)
+    noteLabel.setWordWrap(True)
+
+    #iterate through widgets and apply settings
+    def widgetSetup(widgets, parent, text):
+        for i, widget in enumerate(widgets):
+            label = QtGui.QLabel(text[i])
+            label.setAlignment(Qt.AlignRight)
+            #validator will allow values in range 0:50000 with accuracy of 10 decimals
+            validator = QtGui.QDoubleValidator(0, 50000, 10)
+            validator.setNotation(QDoubleValidator.StandardNotation)
+            widget.setValidator(validator)
+            widget.setFixedWidth(100)
+            parent.addWidget(label, i, 0)
+            parent.addWidget(widget, i, 1)
+
+    #text entry widgets creation and addition for margins section
+    leftMargin = QtGui.QLineEdit()
+    rightMargin = QtGui.QLineEdit()
+    topMargin = QtGui.QLineEdit()
+    bottomMargin = QtGui.QLineEdit()
+    mWidgets = [ leftMargin, rightMargin, topMargin, bottomMargin ]
+    mBox = QtGui.QGridLayout()
+    mBox.setContentsMargins(11, 30, 11, 30)
+    widgetSetup(mWidgets, mBox, mLabelText)
+    marginBox = QtGui.QGroupBox("Margins")
+    marginBox.setLayout(mBox)
+
+    #text entry widgets necessary for the page size and notes for instructions
+    pageWidth = QtGui.QLineEdit()
+    pageHeight = QtGui.QLineEdit()
+    pWidgets = [ pageWidth, pageHeight ]
+    pBox = QtGui.QGridLayout()
+    pBox.setContentsMargins(11, 30, 11, 30)
+    widgetSetup(pWidgets, pBox, pLabelText)
+    pBox.addWidget(noteLabel, len(pWidgets), 0, 1, 2, Qt.AlignCenter)
+    pSizeBox = QtGui.QGroupBox("Page Size")
+    pSizeBox.setLayout(pBox)
+
+    #widget for the print and cancel buttons with signal handling
+    buttonBox = QtGui.QDialogButtonBox()
+    buttonBox.addButton("Cancel", QtGui.QDialogButtonBox.RejectRole)
+    buttonBox.addButton("Print", QtGui.QDialogButtonBox.AcceptRole)
+    buttonBox.accepted.connect(optionsDialog.accept)
+    buttonBox.rejected.connect(optionsDialog.reject)
+
+    #create main grid, populate, and apply to dialog window
+    ##(item, row, column, rowSpan, columnSpan, alignment)
+    ##SetFixedSize for no resizing
+    grid = QtGui.QGridLayout()
+    grid.setSizeConstraint(QLayout.SetMinimumSize)
+    grid.addWidget(marginBox, 1, 0)
+    grid.addWidget(pSizeBox, 1, 1)
+    grid.addWidget(buttonBox, 2, 1)
+    optionsDialog.setLayout(grid)
+
+    debug = open('/home/ben/Desktop/debug.txt', 'w')
+    #if accept button is pressed
+    if optionsDialog.exec_():
+        debug.write("accepted\n")
+        debug.close()
+        printToFile(mWidgets+pWidgets)
+        return
+        ##if I want to correct if fields aren't filled out
+        ##could be solved with just default as 0
+        #for text in mWidgets + pWidgets:
+        #    if not text.text():
+        #        ##TODO Error Dialog
+        #        showDialog()
+        #        break
+    else:
+        debug.write("rejected\n")
+        debug.close()
+        #printToFile(mWidgets+pWidgets)
+        return
+
 q = QAction(mw)
-q.setText("Print")
+q.setText("Print to file(pdf)")
 q.setShortcut(QKeySequence("Ctrl+U"))
 mw.form.menuTools.addAction(q)
-mw.connect(q, SIGNAL("triggered()"), onPrint)
+mw.connect(q, SIGNAL("triggered()"), showDialog)
