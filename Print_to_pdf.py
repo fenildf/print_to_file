@@ -10,7 +10,7 @@
 #==============================================================================#
 #   License:                                                                   #
 #------------------------------------------------------------------------------#
-#   Copyright (C) 2017  Benjamin Dowell     Email: TODO                        #
+#   Copyright (C) 2017  Benjamin Dowell     Email: bdanki@gmx.com              #
 #                                                                              #
 #   This program is free software: you can redistribute it and/or modify       #
 #   it under the terms of the GNU General Public License as published by       #
@@ -28,16 +28,14 @@
 #==============================================================================#
 #   Known Limitations of this Addon Script:                                    #
 #------------------------------------------------------------------------------#
-# * The html file may have added margins with print to file in browser.        #
-# * There is no config file to save settings between uses                      #
-# * The method of rearranging images can't be turned off.                      #
+# * The html file may have unwanted margins depending on the browser           #
+# * The method of rearranging the images can't be turned off.                  #
 # * There is no method to disable pdf conversion dependencies.                 #
 #                                                                              #
 #==============================================================================#
 
 import re, urllib
 import pdfkit
-##TODO check if no need later
 from PyQt4 import QtGui, QtCore, QtWebKit
 from aqt.qt import *
 from anki.utils import isWin
@@ -65,15 +63,11 @@ def getCardIDList(deckID):
     for name, id in mw.col.decks.children(deckID):
         deckIDs.append(id)
 
-    #get ids from tables(cards and notes)
     #keep card id if it is in deck ids and the note id matches the card nid, order by card front alphabetically
-    return mw.col.db.list("select c.id from cards c, notes n where did in %s and c.nid = n.id order by n.sfld" % ids2str(deckIDs))
+    query = "select c.id from cards c, notes n where did in {0} and c.nid = n.id order by n.sfld".format(ids2str(deckIDs))
 
-#remove uncessary style and repeated answer section of notes
-def extractUsefulText(text):
-    text = re.sub("(?si)^.*<hr id=answer>\n*", "", text)
-    text = re.sub("(?si)<style.*?>.*?</style>", "", text)
-    return text
+    #return ids from tables with query
+    return mw.col.db.list(query)
 
 #pull images out of the notes into lists
 def seperateOutImages(note):
@@ -113,45 +107,47 @@ def seperateOutImages(note):
 #function responsible for generating html and pdf from note text
 def printToFile(optionsList):
 
+    #names for html and pdf file joined to profile folder
+    outputPath = os.path.join(mw.pm.profileFolder(), "print_to_pdf")
+    if not os.path.exists(outputPath):
+        os.makedirs(outputPath)
+    htmlPath = os.path.join(outputPath, "print.html")
+    pdfPath = os.path.join(outputPath, "print.pdf")
+
     #default empty fields to 0
     for item in optionsList:
-        if not item.text():
-            item.setText("0")
+        if not item:
+            item = "0"
 
-    #TODO make these interactive to adjust
-    LEFT_MARGIN = float(optionsList[0].text())
-    RIGHT_MARGIN = float(optionsList[1].text())
-    TOP_MARGIN = float(optionsList[2].text())
-    BOTTOM_MARGIN = float(optionsList[3].text())
-    WIDTH = float(optionsList[4].text())
-    HEIGHT = float(optionsList[5].text())
+    #could utilize a dict here instead with descriptive names: optionsList["leftMargin"]
+    LEFT_MARGIN = float(optionsList[0])
+    RIGHT_MARGIN = float(optionsList[1])
+    TOP_MARGIN = float(optionsList[2])
+    BOTTOM_MARGIN = float(optionsList[3])
+    WIDTH = float(optionsList[4])
+    HEIGHT = float(optionsList[5])
 
     #html table values
     TABLE_WIDTH = WIDTH - LEFT_MARGIN - RIGHT_MARGIN
     TABLE_HEIGHT = HEIGHT - TOP_MARGIN - BOTTOM_MARGIN
 
     #options for pdf conversion
-    OPTIONS = {
+    pdfOptions = {
         'disable-smart-shrinking': None,
-        'page-height': '{0}in'.format(str(HEIGHT)),
-        'page-width': '{0}in'.format(str(WIDTH)),
-        'margin-left': '{0}in'.format(str(LEFT_MARGIN)),
-        'margin-right': '{0}in'.format(str(RIGHT_MARGIN)),
-        'margin-top': '{0}in'.format(str(TOP_MARGIN)),
-        'margin-bottom': '{0}in'.format(str(BOTTOM_MARGIN)),
+        'page-height': '{0:.5f}in'.format(HEIGHT),
+        'page-width': '{0:.5f}in'.format(WIDTH),
+        'margin-left': '{0:.5f}in'.format(LEFT_MARGIN),
+        'margin-right': '{0:.5f}in'.format(RIGHT_MARGIN),
+        'margin-top': '{0:.5f}in'.format(TOP_MARGIN),
+        'margin-bottom': '{0:.5f}in'.format(BOTTOM_MARGIN),
     }
 
     #progress bar start
     mw.progress.start(immediate=True)
 
-    #joins user path to filename
-    htmlPath = os.path.join(mw.pm.profileFolder(), "print.html")
-    pdfPath = os.path.join(mw.pm.profileFolder(), "print.pdf")
-
     #pulls list of card ids from DB
     cardIDs = getCardIDList(mw.col.decks.selected())
 
-    #TODO could optimize these string concatenations
     #html header
     header = u"<html>\n"
     header += u"<head>\n"
@@ -162,133 +158,121 @@ def printToFile(optionsList):
     #style section
     style = u"<style type=\"text/css\">\n"
     style += u"\t* { margin: 0px; padding: 0px; }\n"
-    style += u"\ttable {{ height: {0}in; width: {1}in; }}\n".format(str(TABLE_HEIGHT), str(TABLE_WIDTH))
+    style += u"\ttable {{ height: {0:.5f}in; width: {1:.5f}in; }}\n".format(TABLE_HEIGHT, TABLE_WIDTH)
     style += u"\ttable { page-break-after: always; table-layout: fixed; border-spacing: 0px; }\n"
     style += u"\ttd { text-align: center; vertical-align: middle; }\n"
-    style += u"\timg {{ max-height: {0}in; max-width: 100%; }}\n".format(str(TABLE_HEIGHT))
+    style += u"\timg {{ max-height: {0:.5f}in; max-width: 100%; }}\n".format(TABLE_HEIGHT)
     style += u"</style>\n"
 
     #start writing to html file
-    buf = open(htmlPath, "w")
-    buf.write(header.encode("utf8"))
-    buf.write(style.encode("utf8"))
-    buf.write(u"<body>\n".encode("utf8"))
+    with open(htmlPath, "w") as buf:
+        buf.write(header.encode("utf8"))
+        buf.write(style.encode("utf8"))
+        buf.write(u"<body>\n".encode("utf8"))
 
-    #loop through all card IDs and write note text to html file
-    for i, cardID in enumerate(cardIDs):
+        #loop through all card IDs and write note text to html file
+        for i, cardID in enumerate(cardIDs):
 
-        #get card from DB, retrieve question and answer, strip whitespace
-        card = mw.col.getCard(cardID)
-        question = extractUsefulText(card.q()).strip()
-        answer = extractUsefulText(card.a()).strip()
+            #get card from DB, retrieve question and answer, strip whitespace
+            card = mw.col.getCard(cardID)
+            question = re.sub("(?si)^.*<hr id=answer>\n*", "", card.q())
+            question = re.sub("(?si)<style.*?>.*?</style>", "", question).strip()
+            answer = re.sub("(?si)^.*<hr id=answer>\n*", "", card.a())
+            answer = re.sub("(?si)<style.*?>.*?</style>", "", answer).strip()
 
-        #seperate images and text into seperate strings
-        (qText, qImages) = seperateOutImages(question)
-        (aText, aImages) = seperateOutImages(answer)
+            #seperate images and text into seperate strings
+            (qText, qImages) = seperateOutImages(question)
+            (aText, aImages) = seperateOutImages(answer)
 
-        #TODO optimize body html string handling
-        rowHtml = u"<table>\n"
-        rowHtml += u"<tr>\n"
-        if qText:
-            rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(qText)
-        if qImages:
-            for qImage in qImages:
-                rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(qImage)
-        rowHtml += u"</tr>\n"
-        rowHtml += u"</table>\n"
+            #question html
+            rowHtml = u"<table>\n"
+            rowHtml += u"<tr>\n"
+            if qText:
+                rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(qText)
+            if qImages:
+                for qImage in qImages:
+                    rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(qImage)
+            rowHtml += u"</tr>\n"
+            rowHtml += u"</table>\n"
 
-        #new tables are used for each page, so column widths are independent
-        if i+1 < len(cardIDs):
-            rowHtml += u"<table>\n"
-        else:
-            #modify table style on last card so pdfkit doesn't add an extra blank page
-            rowHtml += u"<table style=\"page-break-after: avoid\">\n"
-        rowHtml += u"<tr>\n"
-        if aText:
-            rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(aText)
-        if aImages:
-            for aImage in aImages:
-                rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(aImage)
-        rowHtml += u"</tr>\n"
-        rowHtml += u"</table>\n"
+            #answer html
+            if i+1 < len(cardIDs):
+                rowHtml += u"<table>\n"
+            else:
+                #modify table style on last card so wkhtmltopdf doesn't add an extra blank page
+                rowHtml += u"<table style=\"page-break-after: avoid\">\n"
+            rowHtml += u"<tr>\n"
+            if aText:
+                rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(aText)
+            if aImages:
+                for aImage in aImages:
+                    rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(aImage)
+            rowHtml += u"</tr>\n"
+            rowHtml += u"</table>\n"
 
-        #write card html to file
-        buf.write(rowHtml.encode("utf8"))
+            #write card html to file
+            buf.write(rowHtml.encode("utf8"))
 
-        #progress bar update
-        mw.progress.update("Cards exported: {0}".format(i+1))
+            #progress bar update
+            mw.progress.update("Cards exported: {0}".format(i+1))
 
-    #close out html file writing
-    buf.write("</body>\n".encode("utf8"))
-    buf.write("</html>".encode("utf8"))
-    buf.close()
+        #close out html file writing
+        buf.write("</body>\n".encode("utf8"))
+        buf.write("</html>".encode("utf8"))
 
     #progress bar finish
     mw.progress.finish()
 
     #convert html to pdf
-    pdfkit.from_file(htmlPath, pdfPath, options=OPTIONS)
+    pdfkit.from_file(htmlPath, pdfPath, options=pdfOptions)
 
     #opens pdf
     openLink(uniPathPrefix(pdfPath))
 
-#TODO File IO
-#TODO pass input to print code
-#TODO turn widget creation into a dictionary of sorts, to iterate everything, if/then for groupbox
 #options dialog window for making changes to page size and margin
 def showDialog():
+
     optionsDialog = QtGui.QDialog(mw)
     optionsDialog.setWindowTitle("Page Setup")
     optionsDialog.setStyleSheet(
             "QGroupBox { border: 1px solid gray; font-weight: bold; }\n"
             +"QGroupBox::title { color: black; }")
 
-    #label text and additional note text
-    mLabelText = [ "Left Margin:",
-            "Right Margin:",
-            "Top Margin:",
-            "Bottom Margin:" ]
-    pLabelText = [ "Page Width:",
-            "Page Height:" ]
+    #display text for note and widget labels
     noteText = "Units are in inches."
     noteLabel = QtGui.QLabel(noteText)
     noteLabel.setWordWrap(True)
+    widgetText = [ "Left Margin:",
+            "Right Margin:",
+            "Top Margin:",
+            "Bottom Margin:",
+            "Page Width:",
+            "Page Height:", ]
 
-    #iterate through widgets and apply settings
-    def widgetSetup(widgets, parent, text):
-        for i, widget in enumerate(widgets):
-            label = QtGui.QLabel(text[i])
-            label.setAlignment(Qt.AlignRight)
-            #validator will allow values in range 0:50000 with accuracy of 10 decimals
-            validator = QtGui.QDoubleValidator(0, 50000, 10)
-            validator.setNotation(QDoubleValidator.StandardNotation)
-            widget.setValidator(validator)
-            widget.setFixedWidth(100)
-            parent.addWidget(label, i, 0)
-            parent.addWidget(widget, i, 1)
-
-    #text entry widgets creation and addition for margins section
-    leftMargin = QtGui.QLineEdit()
-    rightMargin = QtGui.QLineEdit()
-    topMargin = QtGui.QLineEdit()
-    bottomMargin = QtGui.QLineEdit()
-    mWidgets = [ leftMargin, rightMargin, topMargin, bottomMargin ]
-    mBox = QtGui.QGridLayout()
-    mBox.setContentsMargins(11, 30, 11, 30)
-    widgetSetup(mWidgets, mBox, mLabelText)
-    marginBox = QtGui.QGroupBox("Margins")
-    marginBox.setLayout(mBox)
-
-    #text entry widgets necessary for the page size and notes for instructions
-    pageWidth = QtGui.QLineEdit()
-    pageHeight = QtGui.QLineEdit()
-    pWidgets = [ pageWidth, pageHeight ]
-    pBox = QtGui.QGridLayout()
-    pBox.setContentsMargins(11, 30, 11, 30)
-    widgetSetup(pWidgets, pBox, pLabelText)
-    pBox.addWidget(noteLabel, len(pWidgets), 0, 1, 2, Qt.AlignCenter)
-    pSizeBox = QtGui.QGroupBox("Page Size")
-    pSizeBox.setLayout(pBox)
+    #create, configure, layout all core widgets and put them into lists
+    leWidgets = []
+    lblWidgets = []
+    gridLayouts = { "margin" : QtGui.QGridLayout(),
+            "pagesize" : QtGui.QGridLayout(), }
+    gridLayouts["margin"].setContentsMargins(11, 30, 11, 30)
+    gridLayouts["pagesize"].setContentsMargins(11, 30, 11, 30)
+    j = 0
+    for i in range(len(widgetText)):
+        lblWidgets.append(QtGui.QLabel(widgetText[i]))
+        lblWidgets[i].setAlignment(Qt.AlignRight)
+        leWidgets.append(QtGui.QLineEdit())
+        validator = QtGui.QDoubleValidator(0, 5000, 5)
+        validator.setNotation(QDoubleValidator.StandardNotation)
+        leWidgets[i].setValidator(validator)
+        leWidgets[i].setFixedWidth(100)
+        if i < 4:
+            gridLayouts["margin"].addWidget(lblWidgets[i], i, 0)
+            gridLayouts["margin"].addWidget(leWidgets[i], i, 1)
+        else:
+            gridLayouts["pagesize"].addWidget(lblWidgets[i], j, 0)
+            gridLayouts["pagesize"].addWidget(leWidgets[i], j, 1)
+            j += 1
+    gridLayouts["pagesize"].addWidget(noteLabel, j, 0, 1, 2, Qt.AlignCenter)
 
     #widget for the print and cancel buttons with signal handling
     buttonBox = QtGui.QDialogButtonBox()
@@ -298,33 +282,46 @@ def showDialog():
     buttonBox.rejected.connect(optionsDialog.reject)
 
     #create main grid, populate, and apply to dialog window
-    ##(item, row, column, rowSpan, columnSpan, alignment)
-    ##SetFixedSize for no resizing
+        ##(item, row, column, rowSpan, columnSpan, alignment)
+        ##SetFixedSize for no resizing
+    mGroup = QtGui.QGroupBox("Margins")
+    pGroup = QtGui.QGroupBox("Page Size")
+    mGroup.setLayout(gridLayouts["margin"])
+    pGroup.setLayout(gridLayouts["pagesize"])
     grid = QtGui.QGridLayout()
-    grid.setSizeConstraint(QLayout.SetMinimumSize)
-    grid.addWidget(marginBox, 1, 0)
-    grid.addWidget(pSizeBox, 1, 1)
+    grid.addWidget(mGroup, 1, 0)
+    grid.addWidget(pGroup, 1, 1)
     grid.addWidget(buttonBox, 2, 1)
+    grid.setSizeConstraint(QLayout.SetMinimumSize)
     optionsDialog.setLayout(grid)
 
-    debug = open('/home/ben/Desktop/debug.txt', 'w')
+    #get initial setting from file if it exists
+    settingsPath = os.path.join(mw.pm.profileFolder(), "print_to_pdf", "settings.txt")
+    if os.path.isfile(settingsPath):
+        with open(settingsPath, "r") as buf:
+            i = 0
+            for line in buf.read().splitlines():
+                leWidgets[i].setText(line)
+                i += 1
+
     #if accept button is pressed
     if optionsDialog.exec_():
-        debug.write("accepted\n")
-        debug.close()
-        printToFile(mWidgets+pWidgets)
+
+        #convert widget text to list
+        oList = []
+        for widget in leWidgets:
+            oList.append(widget.text())
+
+        #overwrite settings file if accepted
+        settingsPath = os.path.join(mw.pm.profileFolder(), "print_to_pdf", "settings.txt")
+        with open(settingsPath, "w") as buf:
+            for option in oList:
+                buf.write(option + "\n")
+
+        printToFile(oList)
         return
-        ##if I want to correct if fields aren't filled out
-        ##could be solved with just default as 0
-        #for text in mWidgets + pWidgets:
-        #    if not text.text():
-        #        ##TODO Error Dialog
-        #        showDialog()
-        #        break
     else:
-        debug.write("rejected\n")
         debug.close()
-        #printToFile(mWidgets+pWidgets)
         return
 
 q = QAction(mw)
