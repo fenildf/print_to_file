@@ -28,14 +28,12 @@
 #==============================================================================#
 #   Known Limitations of this Addon Script:                                    #
 #------------------------------------------------------------------------------#
-# * The html file may have unwanted margins depending on the browser           #
 # * The method of rearranging the images can't be turned off.                  #
 # * There is no method to disable pdf conversion dependencies.                 #
 #                                                                              #
 #==============================================================================#
 
 import re, urllib
-import pdfkit
 from PyQt4 import QtGui, QtCore, QtWebKit
 from aqt.qt import *
 from anki.utils import isWin
@@ -43,6 +41,24 @@ from anki.hooks import runHook, addHook
 from aqt.utils import getBase, openLink
 from aqt import mw
 from anki.utils import ids2str
+import subprocess
+
+#if pdfkit is installed, load it
+try:
+    import pdfkit
+    PDF = True
+except:
+    PDF = False
+
+#check if wkhtmltopdf is installed and correct version
+try:
+    output = subprocess.check_output(["wkhtmltopdf", "--version"])
+    if "(with patched qt)" in output:
+        WK = "installed"
+    else:
+        WK = "not-patched"
+except:
+    WK = "not-installed"
 
 #merge file path with prefix
 def uniPathPrefix(path):
@@ -96,7 +112,7 @@ def seperateOutImages(note):
         note = ''.join(subNotes)
 
         #if no note, just return the images
-        if len(note) == 0:
+        if note:
             return (None, images)
         else:
             return (note, images)
@@ -109,8 +125,6 @@ def printToFile(optionsList):
 
     #names for html and pdf file joined to profile folder
     outputPath = os.path.join(mw.pm.profileFolder(), "print_to_pdf")
-    if not os.path.exists(outputPath):
-        os.makedirs(outputPath)
     htmlPath = os.path.join(outputPath, "print.html")
     pdfPath = os.path.join(outputPath, "print.pdf")
 
@@ -223,22 +237,22 @@ def printToFile(optionsList):
     #progress bar finish
     mw.progress.finish()
 
-    #convert html to pdf
-    pdfkit.from_file(htmlPath, pdfPath, options=pdfOptions)
-
-    #opens pdf
-    openLink(uniPathPrefix(pdfPath))
+    #convert and open file
+    if PDF and WK != "not-installed":
+        pdfkit.from_file(htmlPath, pdfPath, options=pdfOptions)
+        openLink(uniPathPrefix(pdfPath))
+    else:
+        openLink(uniPathPrefix(htmlPath))
 
 #options dialog window for making changes to page size and margin
 def showDialog():
-
     optionsDialog = QtGui.QDialog(mw)
     optionsDialog.setWindowTitle("Page Setup")
     optionsDialog.setStyleSheet(
             "QGroupBox { border: 1px solid gray; font-weight: bold; }\n"
             +"QGroupBox::title { color: black; }")
 
-    #display text for note and widget labels
+    #display text used for labels
     noteText = "Units are in inches."
     noteLabel = QtGui.QLabel(noteText)
     noteLabel.setWordWrap(True)
@@ -248,6 +262,29 @@ def showDialog():
             "Bottom Margin:",
             "Page Width:",
             "Page Height:", ]
+    errorMsgs = [ "pdfkit is not installed.",
+            "wkhtmltopdf is not installed.",
+            "wkhtmltopdf is installed, but it is not the patched qt version.", 
+            "Cards may not fit properly on pdf.",
+            "Conversion will be to html only.", ]
+
+    #construct error message label
+    errorText = []
+    if not PDF:
+        errorText.append(errorMsgs[0])
+    if WK == "not-installed":
+        errorText.append(errorMsgs[1])
+        if PDF:
+            errorText.append(errorMsgs[4])
+    elif WK == "not-patched":
+        errorText.append(errorMsgs[2])
+        if PDF:
+            errorText.append(errorMsgs[3])
+    if not PDF:
+        errorText.append(errorMsgs[4])
+    errorLabel = QtGui.QLabel(" ".join(errorText))
+    errorLabel.setWordWrap(True)
+    errorLabel.setAlignment(Qt.AlignCenter)
 
     #create, configure, layout all core widgets and put them into lists
     leWidgets = []
@@ -289,6 +326,10 @@ def showDialog():
     mGroup.setLayout(gridLayouts["margin"])
     pGroup.setLayout(gridLayouts["pagesize"])
     grid = QtGui.QGridLayout()
+    if errorText:
+        errorBox = QtGui.QHBoxLayout()
+        errorBox.addWidget(errorLabel)
+        grid.addLayout(errorBox, 0, 0, 1, 2)
     grid.addWidget(mGroup, 1, 0)
     grid.addWidget(pGroup, 1, 1)
     grid.addWidget(buttonBox, 2, 1)
@@ -313,7 +354,10 @@ def showDialog():
             oList.append(widget.text())
 
         #overwrite settings file if accepted
-        settingsPath = os.path.join(mw.pm.profileFolder(), "print_to_pdf", "settings.txt")
+        outputPath = os.path.join(mw.pm.profileFolder(), "print_to_pdf")
+        if not os.path.exists(outputPath):
+            os.makedirs(outputPath)
+        settingsPath = os.path.join(outputPath, "settings.txt")
         with open(settingsPath, "w") as buf:
             for option in oList:
                 buf.write(option + "\n")
@@ -321,7 +365,6 @@ def showDialog():
         printToFile(oList)
         return
     else:
-        debug.close()
         return
 
 q = QAction(mw)
