@@ -1,11 +1,9 @@
-# Print_to_pdf
-Addon intended for printing anki decks on adjustable sized pdf pages
+# print_to_file
+Addon intended for printing anki decks in a printable format
 
-The selected deck will be formatted to an html file. The html file will then be converted to a pdf. I chose this last step so that there are less problems due to browser inconsistencies. The pdf has the margins built in, so it should print the same no matter the reader. Either way, the html file will exist, so those who prefer that will have that option.
+This addon exports cards from a selected deck and child decks. An html file will be generated in the user profile directory. pdfkit and wkhtmltopdf are optional dependencies for a pdf format. Currently, the pdf output only works on Linux. The cards are organized with question and answer on seperate pages. The note text is left-aligned so that bullet points look correct. Note text and images are split to fit better for small page sizes.
 
-I wrote this specifically for the purpose of being able to print Anki decks on index cards. Hopefully more people than me find use for it as well.
-
-###Dependencies:
+###Linux Pdf Dependencies:
 
 wkhtmltopdf 12.4 with patched qt http://wkhtmltopdf.org/
 

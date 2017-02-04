@@ -29,7 +29,6 @@
 #   Known Limitations of this Addon Script:                                    #
 #------------------------------------------------------------------------------#
 # * The method of rearranging the images can't be turned off.                  #
-# * There is no method to disable pdf conversion dependencies.                 #
 #                                                                              #
 #==============================================================================#
 
@@ -42,6 +41,7 @@ from aqt.utils import getBase, openLink
 from aqt import mw
 from anki.utils import ids2str
 import subprocess
+import platform
 
 #if pdfkit is installed, load it
 try:
@@ -242,7 +242,7 @@ def printToFile(optionsList):
         pdfkit.from_file(htmlPath, pdfPath, options=pdfOptions)
         openLink(uniPathPrefix(pdfPath))
     else:
-        openLink(uniPathPrefix(htmlPath))
+        QtGui.QDesktopServices.openUrl(QUrl.fromEncoded(uniPathPrefix(htmlPath)))
 
 #options dialog window for making changes to page size and margin
 def showDialog():
@@ -329,6 +329,8 @@ def showDialog():
     if errorText:
         errorBox = QtGui.QHBoxLayout()
         errorBox.addWidget(errorLabel)
+        if platform.system() != "Linux":
+            errorLabel.setText("Pdf conversion is only supported on linux. An html file will still be generated.")
         grid.addLayout(errorBox, 0, 0, 1, 2)
     grid.addWidget(mGroup, 1, 0)
     grid.addWidget(pGroup, 1, 1)
