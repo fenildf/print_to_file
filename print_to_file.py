@@ -1,11 +1,16 @@
 #==============================================================================#
-#   print_to_file Description:                                                 #
+#   print_to_file {ver 1.0} Description:                                       #
 #------------------------------------------------------------------------------#
-#   The addon exports cards from a selected deck and children to a pdf.        #
-#   It generates an html file that gets converted to pdf.                      #
-#   Pdfkit and Wkhtmltopdf are necessary dependencies.                         #
-#   The cards are organized with question and answer on seperate pages.        #
-#   Note text is rearranged for better image sizing for small page sizes.      #
+#   print_to_file is an Anki addon that exports cards from a selected deck     #
+#   and any child decks. It will generate an html file that can get            #
+#   converted to a pdf file if the optional dependencies are met. pdfkit and   #
+#   wkhtmltopdf are used for this process. The option is only available to     #
+#   Linux users. All platforms can use this to create html files. The main     #
+#   reason for this addon is to have customizable page size and margins.       #
+#                                                                              #
+#   The question and answer sections are split into seperate pages. I have     #
+#   included an option to seperate images into their own cells. I found it     #
+#   useful for small landscape page layouts with one or two images.            #
 #                                                                              #
 #==============================================================================#
 #   License:                                                                   #
@@ -28,22 +33,19 @@
 #==============================================================================#
 #   Known Limitations of this Addon Script:                                    #
 #------------------------------------------------------------------------------#
-# * The method of rearranging the images can't be turned off.                  #
+#   * Card style is removed                                                    #
+#   * The html header style section isn't easily customized                    #
 #                                                                              #
 #==============================================================================#
 
-import re, urllib
+import re, urllib, subprocess, platform
 from PyQt4 import QtGui, QtCore, QtWebKit
 from aqt.qt import *
 from anki.utils import isWin
 from anki.hooks import runHook, addHook
-from aqt.utils import getBase, openLink
+from aqt.utils import getBase
 from aqt import mw
 from anki.utils import ids2str
-import subprocess
-import platform
-
-##TODO create an if/then for image handling
 
 #if pdfkit is installed, load it
 try:
@@ -136,7 +138,7 @@ def printToFile(optionsList):
 
     if optionsDict["units"] == 1:
         optionsDict["units"] = "in"
-    elif optionsDict["units"] == 2:
+    else:
         optionsDict["units"] = "mm"
 
     #html table values
@@ -170,7 +172,7 @@ def printToFile(optionsList):
     style += u"\t* { margin: 0px; padding: 0px; }\n"
     style += u"\ttable {{ height: {0:.5f}{2}; width: {1:.5f}{2}; }}\n".format(tableHeight, tableWidth, optionsDict["units"])
     style += u"\ttable { page-break-after: always; table-layout: fixed; border-spacing: 0px; }\n"
-    style += u"\ttd { text-align: center; vertical-align: middle; }\n"
+    style += u"\ttd { vertical-align: middle; }\n"
     style += u"\timg {{ max-height: {0:.5f}{1}; max-width: 100%; }}\n".format(tableHeight, optionsDict["units"])
     style += u"</style>\n"
 
@@ -190,15 +192,19 @@ def printToFile(optionsList):
             answer = re.sub("(?si)^.*<hr id=answer>\n*", "", card.a())
             answer = re.sub("(?si)<style.*?>.*?</style>", "", answer).strip()
 
-            #seperate images and text into seperate strings
-            (qText, qImages) = seperateOutImages(question)
-            (aText, aImages) = seperateOutImages(answer)
+            #seperate images and text into seperate strings if option is selected
+            if optionsDict["imageStyle"] == 2:
+                (question, qImages) = seperateOutImages(question)
+                (answer, aImages) = seperateOutImages(answer)
+            else:
+                qImages = None
+                aImages = None
 
             #question html
             rowHtml = u"<table>\n"
             rowHtml += u"<tr>\n"
-            if qText:
-                rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(qText)
+            if question:
+                rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(question)
             if qImages:
                 for qImage in qImages:
                     rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(qImage)
@@ -212,8 +218,8 @@ def printToFile(optionsList):
                 #modify table style on last card so wkhtmltopdf doesn't add an extra blank page
                 rowHtml += u"<table style=\"page-break-after: avoid\">\n"
             rowHtml += u"<tr>\n"
-            if aText:
-                rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(aText)
+            if answer:
+                rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(answer)
             if aImages:
                 for aImage in aImages:
                     rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(aImage)
@@ -234,9 +240,9 @@ def printToFile(optionsList):
     mw.progress.finish()
 
     #convert and open file
-    if PDF and WK != "not-installed":
+    if PDF and WK != "not-installed" and optionsDict["output"] != 1:
         pdfkit.from_file(htmlPath, pdfPath, options=pdfOptions)
-        openLink(uniPathPrefix(pdfPath))
+        QtGui.QDesktopServices.openUrl(QUrl.fromEncoded(uniPathPrefix(pdfPath)))
     else:
         QtGui.QDesktopServices.openUrl(QUrl.fromEncoded(uniPathPrefix(htmlPath)))
 
