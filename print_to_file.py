@@ -44,8 +44,6 @@ import subprocess
 import platform
 
 ##TODO create an if/then for image handling
-##TODO disable pdf radiobutton
-##TODO disable accept if options are blank
 
 #if pdfkit is installed, load it
 try:
@@ -321,12 +319,11 @@ def showDialog():
 
     #create and setup other options group
     radButtons = []
-    radGroups = { "unit" : QtGui.QButtonGroup(),
-            "imageStyle" : QtGui.QButtonGroup(),
-            "output" : QtGui.QButtonGroup(), }
-    i = 0
-    for key, value in radGroups.iteritems():
+    radKeys = [ "unit", "imageStyle", "output", ]
+    radGroups = dict.fromkeys(radKeys)
+    for i, key in enumerate(radKeys):
         j = i*2
+        radGroups[key] = QtGui.QButtonGroup()
         radLabel = QtGui.QLabel(radLabelText[i])
         radButtons.append(QtGui.QRadioButton(radButtonText[j]))
         radButtons.append(QtGui.QRadioButton(radButtonText[j+1]))
@@ -335,7 +332,6 @@ def showDialog():
         gridLayouts["radio"].addWidget(radLabel, j, 0, 1, 2)
         gridLayouts["radio"].addWidget(radButtons[j], j+1, 0)
         gridLayouts["radio"].addWidget(radButtons[j+1], j+1, 1)
-        i += 1
 
     #buttons for the print and cancel buttons with signal handling
     buttonBox = QtGui.QDialogButtonBox()
@@ -383,37 +379,46 @@ def showDialog():
                     leWidgets[i].setText(line)
                 else:
                     defaults.append(int(line))
-        i = 0
-        for key, value in radGroups.iteritems():
-            value.button(defaults[i]).setChecked(True)
-            i += 1
+        for i, key in enumerate(radKeys):
+            radGroups[key].button(defaults[i]).setChecked(True)
     else:
-        for key, value in radGroups.iteritems():
-            value.button(1).setChecked(True)
+        for i, key in enumerate(radKeys):
+            radGroups[key].button(1).setChecked(True)
 
-    #if accept button is pressed
-    if optionsDialog.exec_():
+    if WK == "not-installed" or not PDF:
+        radGroups["output"].button(2).setEnabled(False)
 
-        #convert widget text to list
-        oList = []
-        for widget in leWidgets:
-            oList.append(float(widget.text()))
-        for key, value in radGroups.iteritems():
-            oList.append(value.checkedId())
+    while True:
+        signal = optionsDialog.exec_()
 
-        #overwrite settings file if accepted
-        outputPath = os.path.join(mw.pm.profileFolder(), "print_to_pdf")
-        if not os.path.exists(outputPath):
-            os.makedirs(outputPath)
-        settingsPath = os.path.join(outputPath, "settings.txt")
-        with open(settingsPath, "w") as buf:
-            for option in oList:
-                buf.write(str(option) + "\n")
+        #if print button is pressed
+        if signal:
+            #convert widget text to list
+            oList = []
+            for widget in leWidgets:
+                if widget.text():
+                    oList.append(float(widget.text()))
+            #cancel print and show error if any fields are blank
+            if len(oList) != len(leWidgets):
+                errorMsg = QtGui.QErrorMessage(optionsDialog)
+                errorMsg.showMessage("No fields can be left empty. Please fill out all options.")
+                continue
+            for key in radKeys:
+                oList.append(radGroups[key].checkedId())
 
-        printToFile(oList)
-        return
-    else:
-        return
+            #overwrite settings file only if printed
+            outputPath = os.path.join(mw.pm.profileFolder(), "print_to_pdf")
+            if not os.path.exists(outputPath):
+                os.makedirs(outputPath)
+            settingsPath = os.path.join(outputPath, "settings.txt")
+            with open(settingsPath, "w") as buf:
+                for option in oList:
+                    buf.write(str(option) + "\n")
+
+            printToFile(oList)
+            break
+        else:
+            break
 
 q = QAction(mw)
 q.setText("Print to file(pdf)")
