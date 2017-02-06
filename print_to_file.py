@@ -1,11 +1,11 @@
 #==============================================================================#
-#   Print_to_pdf Description:                                                  #
+#   print_to_file Description:                                                 #
 #------------------------------------------------------------------------------#
 #   The addon exports cards from a selected deck and children to a pdf.        #
 #   It generates an html file that gets converted to pdf.                      #
 #   Pdfkit and Wkhtmltopdf are necessary dependencies.                         #
 #   The cards are organized with question and answer on seperate pages.        #
-#   Note text is rearrange for better image sizing for small page sizes.       #
+#   Note text is rearranged for better image sizing for small page sizes.      #
 #                                                                              #
 #==============================================================================#
 #   License:                                                                   #
@@ -42,6 +42,10 @@ from aqt import mw
 from anki.utils import ids2str
 import subprocess
 import platform
+
+##TODO create an if/then for image handling
+##TODO disable pdf radiobutton
+##TODO disable accept if options are blank
 
 #if pdfkit is installed, load it
 try:
@@ -128,33 +132,27 @@ def printToFile(optionsList):
     htmlPath = os.path.join(outputPath, "print.html")
     pdfPath = os.path.join(outputPath, "print.pdf")
 
-    #default empty fields to 0
-    for item in optionsList:
-        if not item:
-            item = "0"
+    #options dictionary
+    optionsDict = dict(zip([ "marginLeft", "marginRight", "marginTop", "marginBottom",
+            "pageWidth", "pageHeight", "units", "imageStyle", "output", ], optionsList))
 
-    #could utilize a dict here instead with descriptive names: optionsList["leftMargin"]
-    LEFT_MARGIN = float(optionsList[0])
-    RIGHT_MARGIN = float(optionsList[1])
-    TOP_MARGIN = float(optionsList[2])
-    BOTTOM_MARGIN = float(optionsList[3])
-    WIDTH = float(optionsList[4])
-    HEIGHT = float(optionsList[5])
+    if optionsDict["units"] == 1:
+        optionsDict["units"] = "in"
+    elif optionsDict["units"] == 2:
+        optionsDict["units"] = "mm"
 
     #html table values
-    TABLE_WIDTH = WIDTH - LEFT_MARGIN - RIGHT_MARGIN
-    TABLE_HEIGHT = HEIGHT - TOP_MARGIN - BOTTOM_MARGIN
+    tableWidth = optionsDict["pageWidth"] - optionsDict["marginLeft"] - optionsDict["marginRight"]
+    tableHeight = optionsDict["pageHeight"] - optionsDict["marginTop"] - optionsDict["marginBottom"]
 
     #options for pdf conversion
-    pdfOptions = {
-        'disable-smart-shrinking': None,
-        'page-height': '{0:.5f}in'.format(HEIGHT),
-        'page-width': '{0:.5f}in'.format(WIDTH),
-        'margin-left': '{0:.5f}in'.format(LEFT_MARGIN),
-        'margin-right': '{0:.5f}in'.format(RIGHT_MARGIN),
-        'margin-top': '{0:.5f}in'.format(TOP_MARGIN),
-        'margin-bottom': '{0:.5f}in'.format(BOTTOM_MARGIN),
-    }
+    pdfOptions = { 'disable-smart-shrinking': None,
+            'page-height': '{0:.5f}{1}'.format(optionsDict["pageHeight"], optionsDict["units"]),
+            'page-width': '{0:.5f}{1}'.format(optionsDict["pageWidth"], optionsDict["units"]),
+            'margin-left': '{0:.5f}{1}'.format(optionsDict["marginLeft"], optionsDict["units"]),
+            'margin-right': '{0:.5f}{1}'.format(optionsDict["marginRight"], optionsDict["units"]),
+            'margin-top': '{0:.5f}{1}'.format(optionsDict["marginTop"], optionsDict["units"]),
+            'margin-bottom': '{0:.5f}{1}'.format(optionsDict["marginBottom"], optionsDict["units"]), }
 
     #progress bar start
     mw.progress.start(immediate=True)
@@ -172,10 +170,10 @@ def printToFile(optionsList):
     #style section
     style = u"<style type=\"text/css\">\n"
     style += u"\t* { margin: 0px; padding: 0px; }\n"
-    style += u"\ttable {{ height: {0:.5f}in; width: {1:.5f}in; }}\n".format(TABLE_HEIGHT, TABLE_WIDTH)
+    style += u"\ttable {{ height: {0:.5f}{2}; width: {1:.5f}{2}; }}\n".format(tableHeight, tableWidth, optionsDict["units"])
     style += u"\ttable { page-break-after: always; table-layout: fixed; border-spacing: 0px; }\n"
     style += u"\ttd { text-align: center; vertical-align: middle; }\n"
-    style += u"\timg {{ max-height: {0:.5f}in; max-width: 100%; }}\n".format(TABLE_HEIGHT)
+    style += u"\timg {{ max-height: {0:.5f}{1}; max-width: 100%; }}\n".format(tableHeight, optionsDict["units"])
     style += u"</style>\n"
 
     #start writing to html file
@@ -252,16 +250,7 @@ def showDialog():
             "QGroupBox { border: 1px solid gray; font-weight: bold; }\n"
             +"QGroupBox::title { color: black; }")
 
-    #display text used for labels
-    noteText = "Units are in inches."
-    noteLabel = QtGui.QLabel(noteText)
-    noteLabel.setWordWrap(True)
-    widgetText = [ "Left Margin:",
-            "Right Margin:",
-            "Top Margin:",
-            "Bottom Margin:",
-            "Page Width:",
-            "Page Height:", ]
+    #display text used for errors
     errorMsgs = [ "pdfkit is not installed.",
             "wkhtmltopdf is not installed.",
             "wkhtmltopdf is installed, but it is not the patched qt version.", 
@@ -286,45 +275,90 @@ def showDialog():
     errorLabel.setWordWrap(True)
     errorLabel.setAlignment(Qt.AlignCenter)
 
-    #create, configure, layout all core widgets and put them into lists
-    leWidgets = []
-    lblWidgets = []
+    #inner grid layouts for main sections
     gridLayouts = { "margin" : QtGui.QGridLayout(),
-            "pagesize" : QtGui.QGridLayout(), }
-    gridLayouts["margin"].setContentsMargins(11, 30, 11, 30)
-    gridLayouts["pagesize"].setContentsMargins(11, 30, 11, 30)
+            "pagesize" : QtGui.QGridLayout(),
+            "radio" : QtGui.QGridLayout(), }
+
+    #text used for label widgets in margin and page layout groups
+    leLabelText = [ "Left Margin:",
+        "Right Margin:",
+        "Top Margin:",
+        "Bottom Margin:",
+        "Page Width:",
+        "Page Height:", ]
+
+    #create, configure, layout line edit and label widgets
+    leWidgets = []
     j = 0
-    for i in range(len(widgetText)):
-        lblWidgets.append(QtGui.QLabel(widgetText[i]))
-        lblWidgets[i].setAlignment(Qt.AlignRight)
+    for i in range(len(leLabelText)):
+        leLabel = QtGui.QLabel(leLabelText[i])
+        leLabel.setAlignment(Qt.AlignRight)
         leWidgets.append(QtGui.QLineEdit())
         validator = QtGui.QDoubleValidator(0, 5000, 5)
         validator.setNotation(QDoubleValidator.StandardNotation)
         leWidgets[i].setValidator(validator)
         leWidgets[i].setFixedWidth(100)
         if i < 4:
-            gridLayouts["margin"].addWidget(lblWidgets[i], i, 0)
+            gridLayouts["margin"].addWidget(leLabel, i, 0)
             gridLayouts["margin"].addWidget(leWidgets[i], i, 1)
         else:
-            gridLayouts["pagesize"].addWidget(lblWidgets[i], j, 0)
+            gridLayouts["pagesize"].addWidget(leLabel, j, 0)
             gridLayouts["pagesize"].addWidget(leWidgets[i], j, 1)
             j += 1
-    gridLayouts["pagesize"].addWidget(noteLabel, j, 0, 1, 2, Qt.AlignCenter)
 
-    #widget for the print and cancel buttons with signal handling
+    #text used for radio buttons and labels in other options group
+    radButtonText = [ "Inches",
+            "mm",
+            "Keep layout",
+            "Reposition images",
+            "html only",
+            "html and pdf", ]
+
+    radLabelText = [ "Units used for page layout:",
+            "Image handling(intended for landscape):",
+            "Output file format:", ]
+
+    #create and setup other options group
+    radButtons = []
+    radGroups = { "unit" : QtGui.QButtonGroup(),
+            "imageStyle" : QtGui.QButtonGroup(),
+            "output" : QtGui.QButtonGroup(), }
+    i = 0
+    for key, value in radGroups.iteritems():
+        j = i*2
+        radLabel = QtGui.QLabel(radLabelText[i])
+        radButtons.append(QtGui.QRadioButton(radButtonText[j]))
+        radButtons.append(QtGui.QRadioButton(radButtonText[j+1]))
+        radGroups[key].addButton(radButtons[j], 1)
+        radGroups[key].addButton(radButtons[j+1], 2)
+        gridLayouts["radio"].addWidget(radLabel, j, 0, 1, 2)
+        gridLayouts["radio"].addWidget(radButtons[j], j+1, 0)
+        gridLayouts["radio"].addWidget(radButtons[j+1], j+1, 1)
+        i += 1
+
+    #buttons for the print and cancel buttons with signal handling
     buttonBox = QtGui.QDialogButtonBox()
     buttonBox.addButton("Cancel", QtGui.QDialogButtonBox.RejectRole)
     buttonBox.addButton("Print", QtGui.QDialogButtonBox.AcceptRole)
     buttonBox.accepted.connect(optionsDialog.accept)
     buttonBox.rejected.connect(optionsDialog.reject)
 
+    #group box creation layout sections
+    marginGroup = QtGui.QGroupBox("Margins")
+    marginGroup.setLayout(gridLayouts["margin"])
+    gridLayouts["margin"].setContentsMargins(11, 30, 11, 11)
+    pSizeGroup = QtGui.QGroupBox("Page Size")
+    pSizeGroup.setLayout(gridLayouts["pagesize"])
+    gridLayouts["pagesize"].setContentsMargins(11, 30, 11, 11)
+    otherGroup = QtGui.QGroupBox("Other Options")
+    otherGroup.setLayout(gridLayouts["radio"])
+    gridLayouts["radio"].setContentsMargins(11, 30, 11, 11)
+    otherGroup.setStyleSheet("QLabel { text-decoration: underline }")
+
     #create main grid, populate, and apply to dialog window
         ##(item, row, column, rowSpan, columnSpan, alignment)
         ##SetFixedSize for no resizing
-    mGroup = QtGui.QGroupBox("Margins")
-    pGroup = QtGui.QGroupBox("Page Size")
-    mGroup.setLayout(gridLayouts["margin"])
-    pGroup.setLayout(gridLayouts["pagesize"])
     grid = QtGui.QGridLayout()
     if errorText:
         errorBox = QtGui.QHBoxLayout()
@@ -332,20 +366,30 @@ def showDialog():
         if platform.system() != "Linux":
             errorLabel.setText("Pdf conversion is only supported on linux. An html file will still be generated.")
         grid.addLayout(errorBox, 0, 0, 1, 2)
-    grid.addWidget(mGroup, 1, 0)
-    grid.addWidget(pGroup, 1, 1)
-    grid.addWidget(buttonBox, 2, 1)
+    grid.addWidget(marginGroup, 1, 0)
+    grid.addWidget(pSizeGroup, 2, 0)
+    grid.addWidget(otherGroup, 1, 1, 2, 1)
+    grid.addWidget(buttonBox, 3, 1)
     grid.setSizeConstraint(QLayout.SetMinimumSize)
     optionsDialog.setLayout(grid)
 
     #get initial setting from file if it exists
     settingsPath = os.path.join(mw.pm.profileFolder(), "print_to_pdf", "settings.txt")
     if os.path.isfile(settingsPath):
+        defaults = []
         with open(settingsPath, "r") as buf:
-            i = 0
-            for line in buf.read().splitlines():
-                leWidgets[i].setText(line)
-                i += 1
+            for i, line in enumerate(buf.read().splitlines()):
+                if i < len(leWidgets):
+                    leWidgets[i].setText(line)
+                else:
+                    defaults.append(int(line))
+        i = 0
+        for key, value in radGroups.iteritems():
+            value.button(defaults[i]).setChecked(True)
+            i += 1
+    else:
+        for key, value in radGroups.iteritems():
+            value.button(1).setChecked(True)
 
     #if accept button is pressed
     if optionsDialog.exec_():
@@ -353,7 +397,9 @@ def showDialog():
         #convert widget text to list
         oList = []
         for widget in leWidgets:
-            oList.append(widget.text())
+            oList.append(float(widget.text()))
+        for key, value in radGroups.iteritems():
+            oList.append(value.checkedId())
 
         #overwrite settings file if accepted
         outputPath = os.path.join(mw.pm.profileFolder(), "print_to_pdf")
@@ -362,7 +408,7 @@ def showDialog():
         settingsPath = os.path.join(outputPath, "settings.txt")
         with open(settingsPath, "w") as buf:
             for option in oList:
-                buf.write(option + "\n")
+                buf.write(str(option) + "\n")
 
         printToFile(oList)
         return
