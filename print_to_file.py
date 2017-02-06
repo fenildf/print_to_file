@@ -8,8 +8,8 @@
 #   Linux users. All platforms can use this to create html files. The main     #
 #   reason for this addon is to have customizable page size and margins.       #
 #                                                                              #
-#   The question and answer sections are split into seperate pages. I have     #
-#   included an option to seperate images into their own cells. I found it     #
+#   The question and answer sections are split into separate pages. I have     #
+#   included an option to separate images into their own cells. I found it     #
 #   useful for small landscape page layouts with one or two images.            #
 #                                                                              #
 #==============================================================================#
