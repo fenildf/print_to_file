@@ -1,16 +1,20 @@
 #==============================================================================#
-#   print_to_file {ver 1.0} Description:                                       #
+#   print_to_file {ver 1.01} Description:                                      #
 #------------------------------------------------------------------------------#
 #   print_to_file is an Anki addon that exports cards from a selected deck     #
 #   and any child decks. It will generate an html file that can get            #
 #   converted to a pdf file if the optional dependencies are met. pdfkit and   #
 #   wkhtmltopdf are used for this process. The option is only available to     #
 #   Linux users. All platforms can use this to create html files. The main     #
-#   reason for this addon is to have customizable page size and margins.       #
+#   purpose for this addon is to have customizable page size and margins.      #
 #                                                                              #
 #   The question and answer sections are split into separate pages. I have     #
 #   included an option to separate images into their own cells. I found it     #
-#   useful for small landscape page layouts with one or two images.            #
+#   useful for small landscape page layouts with one or two images. This       #
+#   addon was created for my own use, but if you find cases that I should      #
+#   accommodate better, please let me know.                                    #
+#                                                                              #
+#   GitHub: https://github.com/wetriner/print_to_file                          #
 #                                                                              #
 #==============================================================================#
 #   License:                                                                   #
@@ -174,6 +178,7 @@ def printToFile(optionsList):
     style += u"\ttable { page-break-after: always; table-layout: fixed; border-spacing: 0px; }\n"
     style += u"\ttd { vertical-align: middle; }\n"
     style += u"\timg {{ max-height: {0:.5f}{1}; max-width: 100%; }}\n".format(tableHeight, optionsDict["units"])
+    style += u"\t.front { text-align: center; }\n"
     style += u"</style>\n"
 
     #start writing to html file
@@ -202,7 +207,7 @@ def printToFile(optionsList):
 
             #question html
             rowHtml = u"<table>\n"
-            rowHtml += u"<tr>\n"
+            rowHtml += u"<tr class=\"front\">\n"
             if question:
                 rowHtml += u"\t<td>\n\t\t{0}\n\t</td>\n".format(question)
             if qImages:
