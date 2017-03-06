@@ -1,4 +1,4 @@
-# print_to_file
+# print_to_file #
 Addon intended for formatting anki decks in a printable format
 
 print_to_file is an Anki addon that exports cards from a selected deck
@@ -14,13 +14,17 @@ useful for small landscape page layouts with one or two images. This
 addon was created for my own use, but if you find cases that I should
 accommodate better, please let me know.
 
-###Optional Linux Pdf Dependencies:
+## Optional Linux Pdf Dependencies: ##
 
-wkhtmltopdf 12.4 with patched qt http://wkhtmltopdf.org/
-wkhtmltopdf must be placed in an executable path
+**wkhtmltopdf** 0.12.4 with patched qt  
+wkhtmltopdf must be placed in an executable path  
+http://wkhtmltopdf.org/
 
-pdfkit `pip install pdfkit` https://github.com/JazzCore/python-pdfkit
+**pdfkit**  
+`pip install pdfkit`  
+https://github.com/JazzCore/python-pdfkit
 
-###Changelog:
-1.01 - Centered front page text
+## Changelog: ##
+1.02 - Added text box for easier editing of css style section  
+1.01 - Centered front page text  
 1.0 - Initial working addon

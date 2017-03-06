@@ -1,5 +1,5 @@
 #==============================================================================#
-#   print_to_file {ver 1.01} Description:                                      #
+#   print_to_file {ver 1.02} Description:                                      #
 #------------------------------------------------------------------------------#
 #   print_to_file is an Anki addon that exports cards from a selected deck     #
 #   and any child decks. It will generate an html file that can get            #
@@ -38,7 +38,6 @@
 #   Known Limitations of this Addon Script:                                    #
 #------------------------------------------------------------------------------#
 #   * Card style is removed                                                    #
-#   * The html header style section isn't easily customized                    #
 #                                                                              #
 #==============================================================================#
 
@@ -50,6 +49,16 @@ from anki.hooks import runHook, addHook
 from aqt.utils import getBase
 from aqt import mw
 from anki.utils import ids2str
+
+DEFAULTSTYLE = """<style type=\"text/css\">
+    * {{ margin: 0px; padding: 0px; }}
+    table {{ height: {0}{2}; width: {1}{2}; }}
+    table {{ page-break-after: always; table-layout: fixed; border-spacing: 0px; }}
+    td {{ vertical-align: middle; }}
+    img {{ max-height: {0}{2}; max-width: 100%; }}
+    .front {{ text-align: center; }}
+</style>
+"""
 
 #if pdfkit is installed, load it
 try:
@@ -138,7 +147,7 @@ def printToFile(optionsList):
 
     #options dictionary
     optionsDict = dict(zip([ "marginLeft", "marginRight", "marginTop", "marginBottom",
-            "pageWidth", "pageHeight", "units", "imageStyle", "output", ], optionsList))
+            "pageWidth", "pageHeight", "units", "imageStyle", "output", "cssStyle", ], optionsList))
 
     if optionsDict["units"] == 1:
         optionsDict["units"] = "in"
@@ -171,20 +180,10 @@ def printToFile(optionsList):
     header += u"\t{0}\n".format(getBase(mw.col))
     header += u"</head>\n"
 
-    #style section
-    style = u"<style type=\"text/css\">\n"
-    style += u"\t* { margin: 0px; padding: 0px; }\n"
-    style += u"\ttable {{ height: {0:.5f}{2}; width: {1:.5f}{2}; }}\n".format(tableHeight, tableWidth, optionsDict["units"])
-    style += u"\ttable { page-break-after: always; table-layout: fixed; border-spacing: 0px; }\n"
-    style += u"\ttd { vertical-align: middle; }\n"
-    style += u"\timg {{ max-height: {0:.5f}{1}; max-width: 100%; }}\n".format(tableHeight, optionsDict["units"])
-    style += u"\t.front { text-align: center; }\n"
-    style += u"</style>\n"
-
     #start writing to html file
     with open(htmlPath, "w") as buf:
         buf.write(header.encode("utf8"))
-        buf.write(style.encode("utf8"))
+        buf.write(optionsDict["cssStyle"].format(tableHeight, tableWidth, optionsDict["units"].encode("utf8")))
         buf.write(u"<body>\n".encode("utf8"))
 
         #loop through all card IDs and write note text to html file
@@ -344,12 +343,26 @@ def showDialog():
         gridLayouts["radio"].addWidget(radButtons[j], j+1, 0)
         gridLayouts["radio"].addWidget(radButtons[j+1], j+1, 1)
 
+    #style edit section
+    styleEdit = QtGui.QTextEdit()
+    styleLayout = QtGui.QVBoxLayout()
+    styleInfo = ("The use of double curly braces, {{ and }}, is used to allow(easy) variable substitution. "
+            "The {0} and {1} represent the table height and width respectively with their corresponding margins subtracted. "
+            "The {2} represents the units of your choice(in or mm).")
+    styleInfoLbl = QtGui.QLabel(styleInfo)
+    styleInfoLbl.setWordWrap(True)
+    styleLayout.addWidget(styleInfoLbl)
+    styleLayout.addWidget(styleEdit)
+
     #buttons for the print and cancel buttons with signal handling
     buttonBox = QtGui.QDialogButtonBox()
-    buttonBox.addButton("Cancel", QtGui.QDialogButtonBox.RejectRole)
+    buttonDefault = QtGui.QPushButton("Restore Original Style")
+    buttonBox.addButton(buttonDefault, QtGui.QDialogButtonBox.ResetRole)
+    buttonDefault.clicked.connect(lambda: styleEdit.setPlainText(DEFAULTSTYLE))
+    buttonBox.addButton(QtGui.QDialogButtonBox.Cancel)
+    buttonBox.rejected.connect(optionsDialog.reject)
     buttonBox.addButton("Print", QtGui.QDialogButtonBox.AcceptRole)
     buttonBox.accepted.connect(optionsDialog.accept)
-    buttonBox.rejected.connect(optionsDialog.reject)
 
     #group box creation layout sections
     marginGroup = QtGui.QGroupBox("Margins")
@@ -362,6 +375,9 @@ def showDialog():
     otherGroup.setLayout(gridLayouts["radio"])
     gridLayouts["radio"].setContentsMargins(11, 30, 11, 11)
     otherGroup.setStyleSheet("QLabel { text-decoration: underline }")
+    styleGroup = QtGui.QGroupBox("Style Section")
+    styleGroup.setLayout(styleLayout)
+    styleLayout.setContentsMargins(11, 30, 11, 11)
 
     #create main grid, populate, and apply to dialog window
         ##(item, row, column, rowSpan, columnSpan, alignment)
@@ -374,27 +390,32 @@ def showDialog():
             errorLabel.setText("Pdf conversion is only supported on linux. An html file will still be generated.")
         grid.addLayout(errorBox, 0, 0, 1, 2)
     grid.addWidget(marginGroup, 1, 0)
-    grid.addWidget(pSizeGroup, 2, 0)
     grid.addWidget(otherGroup, 1, 1, 2, 1)
-    grid.addWidget(buttonBox, 3, 1)
+    grid.addWidget(pSizeGroup, 2, 0)
+    grid.addWidget(styleGroup, 3, 0, 1, 2)
+    grid.addWidget(buttonBox, 4, 0, 1, 2)
     grid.setSizeConstraint(QLayout.SetMinimumSize)
     optionsDialog.setLayout(grid)
 
-    #get initial setting from file if it exists
+    #get initial settings from file if it exists
     settingsPath = os.path.join(mw.pm.profileFolder(), "print_to_pdf", "settings.txt")
     if os.path.isfile(settingsPath):
-        defaults = []
         with open(settingsPath, "r") as buf:
-            for i, line in enumerate(buf.read().splitlines()):
-                if i < len(leWidgets):
-                    leWidgets[i].setText(line)
-                else:
-                    defaults.append(int(line))
-        for i, key in enumerate(radKeys):
-            radGroups[key].button(defaults[i]).setChecked(True)
+            text = buf.read().split("]]\n")
+            for i, val in enumerate(text[0].split("[[")):
+                leWidgets[i].setText(val)
+            radPos = [int(pos) for pos in text[1].split("[[")]
+            for i, key in enumerate(radKeys):
+                radGroups[key].button(radPos[i]).setChecked(True)
+            styleEdit.setPlainText(text[2])
     else:
+        for i in range(0,len(leWidgets)-2):
+            leWidgets[i].setText("0.25")
+        leWidgets[-2].setText("6")
+        leWidgets[-1].setText("4")
         for i, key in enumerate(radKeys):
             radGroups[key].button(1).setChecked(True)
+        styleEdit.setPlainText(DEFAULTSTYLE)
 
     if WK == "not-installed" or not PDF:
         radGroups["output"].button(2).setEnabled(False)
@@ -416,6 +437,7 @@ def showDialog():
                 continue
             for key in radKeys:
                 oList.append(radGroups[key].checkedId())
+            oList.append(styleEdit.toPlainText())
 
             #overwrite settings file only if printed
             outputPath = os.path.join(mw.pm.profileFolder(), "print_to_pdf")
@@ -423,8 +445,13 @@ def showDialog():
                 os.makedirs(outputPath)
             settingsPath = os.path.join(outputPath, "settings.txt")
             with open(settingsPath, "w") as buf:
-                for option in oList:
-                    buf.write(str(option) + "\n")
+                for i, option in enumerate(oList):
+                    if i == len(leWidgets)-1 or i == len(oList)-2:
+                        buf.write(str(option) + "]]\n")
+                    elif i == len(oList)-1:
+                        buf.write(option)
+                    else:
+                        buf.write(str(option) + "[[")
 
             printToFile(oList)
             break
