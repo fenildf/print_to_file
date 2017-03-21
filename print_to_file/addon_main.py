@@ -91,6 +91,10 @@ def main():
     image_separation = True if selections[1] == 2 else False
     pdf_output = True if selections[2] == 2 else False
 
+    #progress bar start
+    #TODO: add cancellable to options when Anki is updated
+    mw.progress.start(label="Converting cards...", immediate=True)
+
     #output cards as html file
     convert.create_html(
         dimensions, units, image_separation, style_text, path_dict["html"])
@@ -101,6 +105,9 @@ def main():
         key = "pdf"
     else:
         key = "html"
+
+    #progress bar close
+    mw.progress.finish()
 
     #open file
     file_link = urlparse.urljoin("file:", urllib.pathname2url(path_dict[key]))

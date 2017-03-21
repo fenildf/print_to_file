@@ -47,6 +47,9 @@ def create_pdf(dimensions, units, path_dict):
         arguments.append(dimension + units)
     arguments.extend(["--zoom", "1.2", path_dict["html"], path_dict["pdf"]])
 
+    #progress bar update
+    mw.progress.update("Converting html to pdf...")
+
     #send arguments to call wkhtmltopdf
     call_wkhtmltopdf(path_dict["wkhtmltopdf"], arguments)
 
@@ -77,6 +80,9 @@ def create_html(dimensions, units, image_handling, style_text, output_path):
     processed_cards = process_card_ids(card_ids, image_handling)
 
     html_block = generate_html_block(style_text, processed_cards)
+
+    #progress bar update
+    mw.progress.update("Writing html to file...")
 
     with open(output_path, "w") as buf:
         buf.write(html_block)
@@ -130,6 +136,9 @@ def generate_html_block(style_text, processed_cards):
                 html_block.append(
                     "\t<td>\n\t\t{0}\n\t</td>\n".format(back_image))
         html_block.append("</tr>\n" + "</table>\n")
+
+        #progress bar update
+        mw.progress.update("Cards formatted to html: {0}".format(i+1))
 
     html_block.append("</body>\n" + "</html>")
 
