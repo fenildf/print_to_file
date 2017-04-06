@@ -58,7 +58,7 @@
     </groups>
     <other>
         <style_editor>
-            <label>$HEIGHT and $WEIGHT will be replaced with their margin adjusted page dimensions.
+            <label>$HEIGHT and $WIDTH will be replaced with their margin adjusted page dimensions.
 $UNITS will be replaced with the units choice(in or mm).
 .front and .back are for styling these sections.</label>
             <css_style>* { margin: 0px; padding: 0px; }
