@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #==============================================================================#
 #   License:                                                                   #
 #------------------------------------------------------------------------------#
@@ -25,9 +26,10 @@ from anki.utils import ids2str
 from aqt import mw
 from aqt.utils import getBase
 from print_to_file.shelltools import call_wkhtmltopdf
+from print_to_file.filepaths import FilePath
 
 #output pdf file
-def create_pdf(dimensions, units, path_dict):
+def create_pdf(dimensions, units):
     """Converts an html document into pdf."""
 
     #options for pdf conversion
@@ -42,29 +44,30 @@ def create_pdf(dimensions, units, path_dict):
 
     #build wkhtml arguments from user input argument
     arguments = []
-    for dimension, option in zip(dimensions, options):
+    for i, option in enumerate(options):
+        key = option.split("-")[-1].title()
         arguments.append(option)
-        arguments.append(dimension + units)
-    arguments.extend(["--zoom", "1.2", path_dict["html"], path_dict["pdf"]])
+        arguments.append(dimensions[key] + units)
+    arguments.extend(["--zoom", "1.2", FilePath.html, FilePath.pdf])
 
     #progress bar update
     mw.progress.update("Converting html to pdf...")
 
     #send arguments to call wkhtmltopdf
-    call_wkhtmltopdf(path_dict["wkhtmltopdf"], arguments)
+    call_wkhtmltopdf(FilePath.wkhtmltopdf, arguments)
 
     return
 
 #output html file
-def create_html(dimensions, units, image_handling, style_text, output_path):
+def create_html(page_size, units, split_images, style_text):
     """Creates a formatted html file fron Anki content."""
 
     #convert strings to float values
-    dimensions = [float(x) for x in dimensions]
+    float_size = dict([(k, float(page_size[k])) for k in page_size])
 
     #create adjusted html table values with subtracted margins
-    table_width = dimensions[4]-(dimensions[0]+dimensions[1])
-    table_height = dimensions[5]-(dimensions[2]+dimensions[3])
+    table_height = float_size["Height"]-(float_size["Top"]+float_size["Bottom"])
+    table_width = float_size["Width"]-(float_size["Left"]+float_size["Right"])
 
     #replace all variables in the style text with their values
     style_text = (
@@ -77,14 +80,14 @@ def create_html(dimensions, units, image_handling, style_text, output_path):
     card_ids = get_card_id_list(mw.col.decks.selected())
 
     #pull out style. seperate out images, if selected
-    processed_cards = process_card_ids(card_ids, image_handling)
+    processed_cards = process_card_ids(card_ids, split_images)
 
     html_block = generate_html_block(style_text, processed_cards)
 
     #progress bar update
     mw.progress.update("Writing html to file...")
 
-    with open(output_path, "w") as buf:
+    with open(FilePath.html, "w") as buf:
         buf.write(html_block)
 
     return
@@ -203,7 +206,7 @@ def slice_out_images(note):
 
 
 #strips hrs, style and seperates images if option is selected
-def process_card_ids(card_ids, image_handling):
+def process_card_ids(card_ids, split_images):
     """Removes style and hr blocks, and seperates images if selected."""
 
     processed_cards = []
@@ -215,7 +218,7 @@ def process_card_ids(card_ids, image_handling):
         answer = re.sub("(?si)<style.*?>.*?</style>", "", answer).strip()
 
         #separate images and text into strings if option is selected
-        if image_handling:
+        if split_images:
             (question, front_images) = slice_out_images(question)
             (answer, back_images) = slice_out_images(answer)
         else:

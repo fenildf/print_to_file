@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #==============================================================================#
 #   License:                                                                   #
 #------------------------------------------------------------------------------#
@@ -22,7 +23,6 @@
 
 import os
 import subprocess
-
 
 #return search command based on os
 def get_os_search():
@@ -53,7 +53,7 @@ def get_startupinfo():
     return startupinfo
 
 #use environmental checks to determine the status of dependencies
-def check_wkhtmltopdf(addon_path):
+def check_wkhtmltopdf(addon_dir):
     """Checks if wkhtmltopdf is available to use."""
 
     #use os specific search command
@@ -67,10 +67,21 @@ def check_wkhtmltopdf(addon_path):
         #start search in addon code path
         wkhtml_path = subprocess.check_output(
             [search, "wkhtmltopdf"], startupinfo=startupinfo,
-            cwd=addon_path).splitlines()[0]
-        pdf_status = True
+            cwd=addon_dir).splitlines()[0]
     except subprocess.CalledProcessError:
         wkhtml_path = None
-        pdf_status = False
 
-    return pdf_status, wkhtml_path
+    return wkhtml_path
+
+#launch file based on system environment
+def launch_file(file_path):
+    """Launch output file based on system environment."""
+
+    if os.name == "nt":
+        os.startfile(file_path)
+    else:
+        subprocess.call(["xdg-open", file_path])
+
+
+
+    

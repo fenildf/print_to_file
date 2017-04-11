@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #==============================================================================#
 #   License:                                                                   #
 #------------------------------------------------------------------------------#
@@ -20,72 +21,69 @@
 
 """Tools for reading and writing from xml file."""
 
+from print_to_file.filepaths import FilePath
 import xml.etree.ElementTree as ET
 
-
 #parse xml and format into usable layout list
-def parse_xml(settings_path):
-    """Parse xml file to an organized dictionary.
+def parse_xml(xml_path):
+    """Parse xml file to an organized data structures.
 
-    xml_dict:
-    {"group1": ["Header", {"attrib1": "", "attrib2": ""},
-                          {"attrib1": "", "attrib2": ""}, ...]
-     "group2": [...]
-     ...
-    }
-        "group": xml group tag
-        "Header": xml group header for groupbox
-        "attrib": text and other attributes of widgets
+    line_edit:
+    {"Left": .25, ...}
+
+    radio_buttons:
+    ["Inch", ...]
     """
 
-    tree = ET.parse(settings_path)
+    tree = ET.parse(xml_path)
     root = tree.getroot()
 
-    #accumulate all widgets and attributes to iterate through later
-    group_dict = {}
-    for section in list(root.find("groups")):
-        widget_group = [section.get("header")]
-        for element in list(section):
-            attribute_dict = {}
-            for attribute in list(element):
-                attribute_dict[attribute.tag] = attribute.text
-            widget_group.append(attribute_dict)
-        group_dict[section.tag] = widget_group
+    line_edits = {}
+    for line_edit in root.findall("line-edit"):
+        line_edits[line_edit.get("name")] = line_edit.text
 
-    #accumulate attributes into a dictionary
-    for section in list(root.find("other")):
-        attribute_dict = {}
-        for element in list(section):
-            attribute_dict[element.tag] = element.text
+    radio_buttons = []
+    for radio_button in root.findall("radio-button"):
+        radio_buttons.append(radio_button.get("name"))
 
-        if section.tag == "style_editor":
-            style_dict = attribute_dict
-        elif section.tag == "errors":
-            error_dict = attribute_dict
+    style = root.find("text-edit").text
 
-    return (group_dict, error_dict, style_dict)
-
+    return line_edits, radio_buttons, style
 
 #write settings to xml file
-def write_xml(dimensions_input, radio_positions, css_style, settings_path):
+def write_xml(line_edits, radio_buttons, style, xml_path):
     """Uses user selections, and saves them to xml as a default."""
 
-    #load tree again so values can be modified
-    tree = ET.parse(settings_path)
-    root = tree.getroot()
-    groups = root.find("groups")
+    root = ET.Element("settings")
 
-    #set all values from dimension inputs
-    for i, widget in enumerate(list(groups.find("dimensions"))):
-        widget.find("value").text = str(dimensions_input[i])
+    #set all values for line edit inputs
+    for i, key in enumerate(line_edits):
+        ET.SubElement(root, "line-edit", name=key).text = line_edits[key]
 
-    #set all positions from radio positions
-    for i, widget in enumerate(list(groups.find("radio_buttons"))):
-        widget.find("position").text = str(radio_positions[i])
+    #set all selections from radio buttons
+    for radio_button in radio_buttons:
+        ET.SubElement(root, "radio-button", name=radio_button)
 
     #set style
-    (root.find("other")
-     .find("style_editor")
-     .find("css_style").text) = css_style
+    ET.SubElement(root, "text-edit").text = style
 
-    tree.write(settings_path)
+    indent(root)
+    tree = ET.ElementTree(root)
+
+    tree.write(xml_path)
+
+#adds the unecessary but pleasing whitespace
+def indent(elem, level=0):
+    i = "\n" + level*"  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:
+            indent(elem, level+1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i

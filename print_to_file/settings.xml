@@ -1,79 +1,19 @@
-<widgetdata>
-    <groups>
-        <dimensions header="Page Dimensions">
-            <line_edit>
-                <name>left</name>
-                <label>Left Margin</label>
-                <value>.25</value>
-            </line_edit>
-            <line_edit>
-                <name>right</name>
-                <label>Right Margin</label>
-                <value>.25</value>
-            </line_edit>
-            <line_edit>
-                <name>top</name>
-                <label>Top Margin</label>
-                <value>.25</value>
-            </line_edit>
-            <line_edit>
-                <name>bottom</name>
-                <label>Bottom Margin</label>
-                <value>.25</value>
-            </line_edit>
-            <line_edit>
-                <name>width</name>
-                <label>Page Width</label>
-                <value>6</value>
-            </line_edit>
-            <line_edit>
-                <name>height</name>
-                <label>Page Height</label>
-                <value>4</value>
-            </line_edit>
-        </dimensions>
-        <radio_buttons header="Other Options">
-            <radio_group>
-                <name>units</name>
-                <label>Units used for page layout:</label>
-                <left>Inches</left>
-                <right>mm</right>
-                <position>1</position>
-            </radio_group>
-            <radio_group>
-                <name>reposition</name>
-                <label>Image handling (intended for landscape):</label>
-                <left>Keep layout</left>
-                <right>Reposition images</right>
-                <position>2</position>
-            </radio_group>
-            <radio_group>
-                <name>output</name>
-                <label>Output file format:</label>
-                <left>html only</left>
-                <right>html and pdf</right>
-                <position>2</position>
-            </radio_group>
-        </radio_buttons>
-    </groups>
-    <other>
-        <style_editor>
-            <label>$HEIGHT and $WIDTH will be replaced with their margin adjusted page dimensions.
-$UNITS will be replaced with the units choice(in or mm).
-.front and .back are for styling these sections.</label>
-            <css_style>* { margin: 0px; padding: 0px; }
+<?xml version='1.0' encoding='utf-8'?>
+<settings>
+  <line-edit name="Left">.25</line-edit>
+  <line-edit name="Right">.25</line-edit>
+  <line-edit name="Top">.25</line-edit>
+  <line-edit name="Bottom">.25</line-edit>
+  <line-edit name="Width">6</line-edit>
+  <line-edit name="Height">4</line-edit>
+  <radio-button name="Inch" />
+  <radio-button name="Split" />
+  <radio-button name="Pdf" />
+  <text-edit>* { margin: 0px; padding: 0px; }
 table { height: $HEIGHT$UNITS; width: $WIDTH$UNITS; }
 table { page-break-after: always; table-layout: fixed; border-spacing: 0px; }
 td { vertical-align: middle; }
 img { max-height: $HEIGHT$UNITS; max-width: 100%; }
 .front { text-align: center; }
-.back { text-align: left; text-size: small; }</css_style>
-        </style_editor>
-        <errors>
-            <no_wkhtml>wkhtmltopdf was not found.</no_wkhtml>
-            <path_info>The executable can be placed in the Anki/addons/print_to_file directory or in any path that can be found by the command &lt;b&gt;{} wkhtmltopdf&lt;/b&gt;.</path_info>
-            <only_html>Output will be limited to html only.</only_html>
-            <incomplete_form>All fields must be filled out.</incomplete_form>
-        </errors>
-    </other>
-</widgetdata>
+.back { text-align: left; text-size: small; }</text-edit>
+</settings>
