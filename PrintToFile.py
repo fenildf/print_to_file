@@ -1,12 +1,31 @@
 # -*- coding: utf-8 -*-
 #==============================================================================#
-#   print_to_file {ver 2.0} Description:                                       #
+#   License:                                                                   #
 #------------------------------------------------------------------------------#
-#   print_to_file is an Anki addon that exports cards from a selected deck     #
-#   and its child decks. It will always generate an html file that can be      #
-#   converted to a pdf if the optional dependency is met. wkhtmltopdf is       #
-#   used for an automated pdf conversion. The main purpose for creating this   #
-#   addon is to have customizable page size and margins.                       #
+#   Anki addon intended for converting decks into a printable format           #
+#   Copyright (C) 2017  Benjamin Dowell     Email: bdanki@gmx.com              #
+#                                                                              #
+#   This program is free software: you can redistribute it and/or modify       #
+#   it under the terms of the GNU General Public License as published by       #
+#   the Free Software Foundation, either version 3 of the License, or          #
+#   (at your option) any later version.                                        #
+#                                                                              #
+#   This program is distributed in the hope that it will be useful,            #
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of             #
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              #
+#   GNU General Public License for more details.                               #
+#                                                                              #
+#   You should have received a copy of the GNU General Public License          #
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>.      #
+#                                                                              #
+#==============================================================================#
+#   Description of print_to_file {ver 2.1}                                     #
+#------------------------------------------------------------------------------#
+#   print_to_file exports cards from a selected deck and its child decks.      #
+#   It will always generate an html file that can be converted to a pdf if     #
+#   the optional dependency is met. wkhtmltopdf is used for an automated pdf   #
+#   conversion. The main purpose for creating this addon is to have            #
+#   customizable page size and margins.                                        #
 #                                                                              #
 #   The html file is generated with a customizable css style block. The        #
 #   question and answer sections are split into separate pages. This is so     #
@@ -28,25 +47,7 @@
 #   GitHub: https://github.com/wetriner/print_to_file                          #
 #                                                                              #
 #==============================================================================#
-#   License:                                                                   #
-#------------------------------------------------------------------------------#
-#   Copyright (C) 2017  Benjamin Dowell     Email: bdanki@gmx.com              #
-#                                                                              #
-#   This program is free software: you can redistribute it and/or modify       #
-#   it under the terms of the GNU General Public License as published by       #
-#   the Free Software Foundation, either version 3 of the License, or          #
-#   (at your option) any later version.                                        #
-#                                                                              #
-#   This program is distributed in the hope that it will be useful,            #
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of             #
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              #
-#   GNU General Public License for more details.                               #
-#                                                                              #
-#   You should have received a copy of the GNU General Public License          #
-#   along with this program.  If not, see <http://www.gnu.org/licenses/>.      #
-#                                                                              #
-#==============================================================================#
-#   Known Limitations of this Addon Script:                                    #
+#   Known limitations of this addon:                                           #
 #------------------------------------------------------------------------------#
 #   * The Anki card style is removed                                           #
 #   * The default css style is not a good starter style                        #
