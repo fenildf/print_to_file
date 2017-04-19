@@ -22,6 +22,7 @@
 """Checks for dependency conflicts and handles shell calls."""
 
 import os
+import sys
 import subprocess
 
 #return search command based on os
@@ -77,11 +78,12 @@ def check_wkhtmltopdf(addon_dir):
 def launch_file(file_path):
     """Launch output file based on system environment."""
 
-    if os.name == "nt":
+    if sys.platform.startswith("linux"):
+        subprocess.call(["xdg-open", filename])
+    elif sys.platform == "darwin":
+        subprocess.call(["open", file_path])
+    elif sys.platform == "win32":
         os.startfile(file_path)
     else:
-        subprocess.call(["xdg-open", file_path])
-
-
-
-    
+        raise Exception(
+            "Can't launch {}, but it was still created.".format(file_path))
