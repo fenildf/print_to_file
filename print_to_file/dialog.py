@@ -44,7 +44,6 @@ class DialogWindow(object):
     """Dialog window intended to be set up upon initilization."""
 
     def __init__(self, dimensions, positions, style):
-    #def __init__(self, xml_dict, error_dict, style_dict, pdf_status):
         """Checks dependency and calls dialog creation methods."""
 
         #create and setup ui dialog
