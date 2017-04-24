@@ -67,7 +67,7 @@ table { page-break-after: always; table-layout: fixed; border-spacing: 0px; }
 td { vertical-align: middle; }
 img { max-height: $HEIGHT$UNITS; max-width: 100%; }
 .front { text-align: center; }
-.back { text-align: left; text-size: small; }</css_style>
+.back { text-align: left; font-size: small; }</css_style>
         </style_editor>
         <errors>
             <no_wkhtml>wkhtmltopdf was not found.</no_wkhtml>
